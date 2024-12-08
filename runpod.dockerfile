@@ -24,11 +24,12 @@ COPY runpod_requirements.txt ./
 RUN $HOME/.local/bin/uv pip install --system --no-cache --index-strategy=unsafe-best-match -r runpod_requirements.txt
 
 COPY trellis/ ./trellis/
-COPY glb_to_usdz/ ./glb_to_usdz/
-COPY runpod_handler.py ./
 
 # Cache the models. This produces a giant layer.
 COPY prepare_cache.py ./
 RUN python3 prepare_cache.py
+
+COPY glb_to_usdz/ ./glb_to_usdz/
+COPY runpod_handler.py ./
 
 CMD ["python3", "-u", "runpod_handler.py"]

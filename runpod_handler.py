@@ -35,6 +35,8 @@ def handler(event):
         mesh_simplify = input.get("mesh_simplify", 0.95)
         texture_size = input.get("texture_size", 1024)
 
+        output_format = input.get("format", "usdz")
+
         outputs = pipeline.run(
             image,
             seed=seed,
@@ -58,13 +60,20 @@ def handler(event):
         glb_path = os.path.join("job_files", f"{job_id}.glb")
         glb.export(glb_path, file_type="glb")
 
-        usdz_path = os.path.join("job_files", f"{job_id}.usdz")
-        glb_to_usdz(glb_path, usdz_path)
+        if output_format == "usdz":
+            usdz_path = os.path.join("job_files", f"{job_id}.usdz")
+            glb_to_usdz(glb_path, usdz_path)
 
-        with open(usdz_path, "rb") as usdz_file:
-            usdz_base64 = base64.b64encode(usdz_file.read()).decode("utf-8")
+            with open(usdz_path, "rb") as usdz_file:
+                usdz_base64 = base64.b64encode(usdz_file.read()).decode("utf-8")
 
-        return {"usdz": usdz_base64}
+            return {"usdz": usdz_base64}
+
+        else:
+            with open(glb_path, "rb") as glb_file:
+                glb_base64 = base64.b64encode(glb_file.read()).decode("utf-8")
+
+            return {"glb": glb_base64}
 
     finally:
         clean()

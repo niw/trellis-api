@@ -26,7 +26,7 @@ require 'json'
 ENDPOINT_ID = ENV['RUNPOD_ENDPOINT_ID']
 API_KEY = ENV['RUNPOD_API_KEY']
 
-def post_run(image)
+def post_run(image, format)
   url = URI.parse("https://api.runpod.ai/v2/#{ENDPOINT_ID}/run")
 
   http = Net::HTTP.new(url.host, url.port)
@@ -38,10 +38,12 @@ def post_run(image)
   })
 
   image_base64 = Base64.encode64(image).gsub(/\n/, '')
+  input = {
+    'image': image_base64
+  }
+  input['format'] = format if format
   request.body = {
-    'input': {
-      'image': image_base64
-    }
+    'input': input
   }.to_json
 
   response = http.request(request)
@@ -91,16 +93,19 @@ OptionParser.new do |opts|
     options[:job_id] = job_id
   end
 
+  opts.on('-f', '--format FORMAT', 'GLB or USDZ') do |format|
+    options[:format] = format.downcase
+  end
+
   opts.on('-o', '--output PATH', 'Path to output') do |output|
     options[:output_path] = output
   end
 end.parse!
 
-output_path = options[:output_path]
-
 if image_path = options[:image_path]
   image_binary = File.read(image_path)
-  job_id = post_run(image_binary)
+  format = options[:format]
+  job_id = post_run(image_binary, format)
 
   puts job_id
 
@@ -108,15 +113,11 @@ if image_path = options[:image_path]
     return
   end
 
-  unless options[:output_path]
-    output_path ||= File.join(File.dirname(image_path), "#{File.basename(image_path, ".*")}.usdz")
-  end
+  output_base_path = File.join(File.dirname(image_path), File.basename(image_path, ".*"))
+elsif job_id = options[:job_id]
+  output_base_path = job_id
 else
-  job_id = options[:job_id]
-
-  if options[:wait]
-    output_path ||= "#{job_id}.usdz"
-  end
+  return
 end
 
 status, output = get_status(job_id)
@@ -142,9 +143,17 @@ end
 
 case status
 when 'COMPLETED'
-  if output_path
-    File.open(output_path, 'wb') do |f|
-      f.write(Base64.decode64(output['usdz']))
-    end
+  if output_base64 = output['usdz']
+    output_base_path = "#{output_base_path}.usdz"
+  elsif output_base64 = output['glb']
+    output_base_path = "#{output_base_path}.glb"
+  else
+    return
+  end
+
+  output_path = options[:output_path] || output_base_path
+
+  File.open(output_path, 'wb') do |f|
+    f.write(Base64.decode64(output_base64))
   end
 end
