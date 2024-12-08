@@ -12,9 +12,9 @@
 #
 # Then run script. With `--wait` option, it waits for the response,
 # or check current status with `--job`.
-# 
+#
 # ```
-# $ ruby runpod_client.rb -i PATH_TO_IMAGE -w -o OUTPUT_GLB_PATH
+# $ ruby runpod_client.rb -i PATH_TO_IMAGE -w -o OUTPUT_USDZ_PATH
 # ```
 
 require 'optparse'
@@ -134,7 +134,7 @@ case status
 when 'COMPLETED'
   if output_path = options[:output_path]
     File.open(output_path, 'wb') do |f|
-      f.write(Base64.decode64(output['glb']))
+      f.write(Base64.decode64(output['usdz']))
     end
   end
 end

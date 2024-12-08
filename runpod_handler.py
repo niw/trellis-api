@@ -6,19 +6,22 @@ os.environ['SPCONV_ALGO'] = 'native'
 
 from typing import *
 import numpy as np
-import imageio
-import uuid
 from PIL import Image
 from trellis.pipelines import TrellisImageTo3DPipeline
-from trellis.utils import render_utils, postprocessing_utils
+from trellis.utils import postprocessing_utils
 
 import base64
 from io import BytesIO
+from glb_to_usdz import glb_to_usdz
 
 MAX_SEED = np.iinfo(np.int32).max
 
 def handler(event):
     try:
+        os.makedirs("job_files", exist_ok=True)
+
+        job_id = event["id"]
+
         input = event["input"]
 
         image_bytes = base64.b64decode(input["image"])
@@ -52,12 +55,16 @@ def handler(event):
 
         glb = postprocessing_utils.to_glb(gs, mesh, simplify=mesh_simplify, texture_size=texture_size, verbose=False)
 
-        glb_bytes = BytesIO()
-        glb.export(glb_bytes, file_type="glb")
+        glb_path = os.path.join("job_files", f"{job_id}.glb")
+        glb.export(glb_path, file_type="glb")
 
-        glb_base64 = base64.b64encode(glb_bytes.getvalue()).decode("utf-8")
+        usdz_path = os.path.join("job_files", f"{job_id}.usdz")
+        glb_to_usdz(glb_path, usdz_path)
 
-        return {"glb": glb_base64}
+        with open(usdz_path, "rb") as usdz_file:
+            usdz_base64 = base64.b64encode(usdz_file.read()).decode("utf-8")
+
+        return {"usdz": usdz_base64}
 
     finally:
         clean()

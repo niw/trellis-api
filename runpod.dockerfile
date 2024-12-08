@@ -12,11 +12,14 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-COPY trellis/ ./trellis/
 COPY wheels/ ./wheels/
 COPY runpod_requirements.txt ./
-COPY runpod_handler.py ./
 
+# This dependencies produces a significantly giant layer.
 RUN $HOME/.local/bin/uv pip install --system --no-cache --index-strategy=unsafe-best-match -r runpod_requirements.txt
+
+COPY trellis/ ./trellis/
+COPY glb_to_usdz/ ./glb_to_usdz/
+COPY runpod_handler.py ./
 
 CMD ["python3", "-u", "runpod_handler.py"]
