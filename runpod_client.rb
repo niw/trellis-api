@@ -96,6 +96,8 @@ OptionParser.new do |opts|
   end
 end.parse!
 
+output_path = options[:output_path]
+
 if image_path = options[:image_path]
   image_binary = File.read(image_path)
   job_id = post_run(image_binary)
@@ -105,8 +107,16 @@ if image_path = options[:image_path]
   unless options[:wait]
     return
   end
+
+  unless options[:output_path]
+    output_path ||= File.join(File.dirname(image_path), "#{File.basename(image_path, ".*")}.usdz")
+  end
 else
   job_id = options[:job_id]
+
+  if options[:wait]
+    output_path ||= "#{job_id}.usdz"
+  end
 end
 
 status, output = get_status(job_id)
@@ -132,7 +142,7 @@ end
 
 case status
 when 'COMPLETED'
-  if output_path = options[:output_path]
+  if output_path
     File.open(output_path, 'wb') do |f|
       f.write(Base64.decode64(output['usdz']))
     end
