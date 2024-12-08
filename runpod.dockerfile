@@ -7,6 +7,11 @@ ENV PYTHONUNBUFFERED=True
 
 WORKDIR /workdir
 
+# See `prepare_cache.py` as well.
+ENV HF_HOME="/workdir/.cache/huggingface"
+ENV TORCH_HOME="/workdir/.cache/torch"
+ENV U2NET_HOME="/workdir/.cache/u2net"
+
 RUN apt update && \
     apt install -y curl git python3 && \
     rm -rf /var/lib/apt/lists/*
@@ -21,5 +26,9 @@ RUN $HOME/.local/bin/uv pip install --system --no-cache --index-strategy=unsafe-
 COPY trellis/ ./trellis/
 COPY glb_to_usdz/ ./glb_to_usdz/
 COPY runpod_handler.py ./
+
+# Cache the models. This produces a giant layer.
+COPY prepare_cache.py ./
+RUN python3 prepare_cache.py
 
 CMD ["python3", "-u", "runpod_handler.py"]
