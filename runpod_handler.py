@@ -1,22 +1,43 @@
+import base64
+from io import BytesIO
+import os
+from typing import Any
+
+os.environ["SPCONV_ALGO"] = "native"
+
+import numpy as np
 import runpod
 from runpod.serverless.utils.rp_cleanup import clean
-
-import os
-os.environ['SPCONV_ALGO'] = 'native'
-
-from typing import *
-import numpy as np
 from PIL import Image
 from trellis.pipelines import TrellisImageTo3DPipeline
 from trellis.utils import postprocessing_utils
 
-import base64
-from io import BytesIO
 from glb_to_usdz import glb_to_usdz
 
 MAX_SEED = np.iinfo(np.int32).max
 
-def handler(event):
+
+_pipeline: TrellisImageTo3DPipeline | None = None
+
+
+def pipeline() -> TrellisImageTo3DPipeline:
+    global _pipeline
+    if _pipeline is None:
+        _pipeline = TrellisImageTo3DPipeline.from_pretrained(
+            "microsoft/TRELLIS-image-large"
+        )
+        _pipeline.cuda()
+        try:
+            # Preload rembg
+            _pipeline.preprocess_image(
+                Image.fromarray(np.zeros((512, 512, 3), dtype=np.uint8))
+            )
+        except Exception:
+            pass
+    return _pipeline
+
+
+def handler(event: dict[str, Any]):
     try:
         os.makedirs("job_files", exist_ok=True)
 
@@ -37,7 +58,7 @@ def handler(event):
 
         output_format = input.get("format", "usdz")
 
-        outputs = pipeline.run(
+        outputs = pipeline().run(
             image,
             seed=seed,
             formats=["gaussian", "mesh"],
@@ -49,13 +70,15 @@ def handler(event):
             slat_sampler_params={
                 "steps": slat_sampling_steps,
                 "cfg_strength": slat_guidance_strength,
-            }
+            },
         )
 
         gs = outputs["gaussian"][0]
         mesh = outputs["mesh"][0]
 
-        glb = postprocessing_utils.to_glb(gs, mesh, simplify=mesh_simplify, texture_size=texture_size, verbose=False)
+        glb = postprocessing_utils.to_glb(
+            gs, mesh, simplify=mesh_simplify, texture_size=texture_size, verbose=False
+        )
 
         glb_path = os.path.join("job_files", f"{job_id}.glb")
         glb.export(glb_path, file_type="glb")
@@ -78,13 +101,6 @@ def handler(event):
     finally:
         clean()
 
-if __name__ == '__main__':
-    pipeline = TrellisImageTo3DPipeline.from_pretrained("JeffreyXiang/TRELLIS-image-large")
-    pipeline.cuda()
-    try:
-        # Preload rembg
-        pipeline.preprocess_image(Image.fromarray(np.zeros((512, 512, 3), dtype=np.uint8)))
-    except:
-        pass
 
+if __name__ == "__main__":
     runpod.serverless.start({"handler": handler})

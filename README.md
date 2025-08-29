@@ -9,5 +9,5 @@ Reference
 ---------
 
 - <https://github.com/Microsoft/TRELLIS>
-- <https://huggingface.co/spaces/JeffreyXiang/TRELLIS/tree/main>
+- <https://huggingface.co/spaces/microsoft/TRELLIS/tree/main>
 

@@ -1,13 +1,14 @@
-import os
 import json
+import os
+
 from huggingface_hub import hf_hub_download
-import torch
 import rembg
+import torch
 
 # Download Hugging Face hosted models to os.environ['HF_HOME']
-print(os.environ['HF_HOME'])
+print(os.environ["HF_HOME"])
 
-repo_id = "JeffreyXiang/TRELLIS-image-large"
+repo_id = "microsoft/TRELLIS-image-large"
 
 config_file = hf_hub_download(repo_id, "pipeline.json")
 
@@ -20,11 +21,11 @@ for _, v in args["models"].items():
     hf_hub_download(repo_id, f"{v}.safetensors")
 
 # Download https://github.com/facebookresearch/dinov2 models to os.environ['TORCH_HOME']
-print(os.environ['TORCH_HOME'])
+print(os.environ["TORCH_HOME"])
 
 torch.hub.load("facebookresearch/dinov2", args["image_cond_model"], pretrained=True)
 
 # Download https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx to os.environ['U2NET_HOME']
-print(os.environ['U2NET_HOME'])
+print(os.environ["U2NET_HOME"])
 
-rembg.new_session('u2net')
+rembg.new_session("u2net")
