@@ -12,23 +12,24 @@ ENV HF_HOME="/workdir/.cache/huggingface"
 ENV TORCH_HOME="/workdir/.cache/torch"
 ENV U2NET_HOME="/workdir/.cache/u2net"
 
-RUN apt update && \
-    apt install -y curl git python3 && \
-    rm -rf /var/lib/apt/lists/*
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,sharing=locked,target=/var/lib/apt \
+    apt update && \
+    apt install -y curl git python3
 
-COPY wheels/ ./wheels/
-COPY runpod_requirements.txt ./
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
 
-# This dependencies produces a significantly giant layer.
-RUN $HOME/.local/bin/uv pip install --system --no-cache --index-strategy=unsafe-best-match -r runpod_requirements.txt
-
-COPY trellis/ ./trellis/
+# Install dependencies. This produces a significantly giant layer.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=wheels,target=wheels \
+    --mount=type=bind,source=runpod_requirements.txt,target=runpod_requirements.txt \
+    uv pip install --system --compile-bytecode --index-strategy=unsafe-best-match -r runpod_requirements.txt
 
 # Cache the models. This produces a giant layer.
-COPY prepare_cache.py ./
-RUN python3 prepare_cache.py
+RUN --mount=type=bind,source=prepare_cache.py,target=prepare_cache.py \
+    python3 prepare_cache.py
 
+COPY trellis/ ./trellis/
 COPY glb_to_usdz/ ./glb_to_usdz/
 COPY runpod_handler.py ./
 
