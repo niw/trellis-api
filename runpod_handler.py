@@ -11,6 +11,7 @@ from runpod.serverless.utils.rp_cleanup import clean
 from PIL import Image
 from trellis.pipelines import TrellisImageTo3DPipeline
 from trellis.utils import postprocessing_utils
+from trimesh.visual.material import SimpleMaterial
 
 from glb_to_usdz import glb_to_usdz
 
@@ -36,6 +37,13 @@ def pipeline() -> TrellisImageTo3DPipeline:
             pass
     return _pipeline
 
+def linear_to_srgb(img: Image.Image) -> Image.Image:
+    arr = np.asarray(img).astype("float32") / 255.0
+    mask = arr <= 0.0031308
+    arr[mask] = arr[mask] * 12.92
+    arr[~mask] = 1.055 * np.power(arr[~mask], 1/2.4) - 0.055
+    arr = np.clip(arr * 255.0, 0, 255).astype("uint8")
+    return Image.fromarray(arr, mode=img.mode)
 
 def handler(event: dict[str, Any]):
     try:
@@ -79,6 +87,17 @@ def handler(event: dict[str, Any]):
         glb = postprocessing_utils.to_glb(
             gs, mesh, simplify=mesh_simplify, texture_size=texture_size, verbose=False
         )
+
+        # Address texture color problem
+        material: SimpleMaterial = glb.visual.material
+
+        # 1. Use white diffuse color instead.
+        # `TextureVisuals` is by default uses gray `DEFAULT_COLOR` color as diffuse,
+        # which ends up with 40% value texture.
+        material.diffuse = np.array([255, 255, 255, 255], dtype=np.uint8)
+
+        # 2. Convert color from linear to sRGB.
+        material.image = linear_to_srgb(material.image)
 
         glb_path = os.path.join("job_files", f"{job_id}.glb")
         glb.export(glb_path, file_type="glb")
